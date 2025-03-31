@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useThreeTools } from "../lib/hooks/useThreeTools";
+import {
+  minTileIndex,
+  maxTileIndex,
+  tileSize,
+} from "@/lib/constants/constants";
 import * as THREE from "three";
 
 const App = () => {
@@ -28,6 +33,7 @@ const App = () => {
     const dirLight = createDirectionalLight();
     const camera = createCamera();
     const metadata = createMetaData();
+    const clock = new THREE.Clock();
 
     scene.add(player);
     scene.add(map);
@@ -60,6 +66,8 @@ const App = () => {
               rowData.direction,
               vehicle.color
             );
+
+            vehicle.ref = car;
             row.add(car);
           });
 
@@ -75,6 +83,7 @@ const App = () => {
               rowData.direction,
               vehicle.color
             );
+            vehicle.ref = truck;
             row.add(truck);
           });
 
@@ -96,9 +105,43 @@ const App = () => {
       initializeMap();
     }
 
+    function animateVehicles() {
+      const delta = clock.getDelta();
+
+      // Animate cars and trucks
+      metadata.forEach((rowData) => {
+        if (rowData.type === "car" || rowData.type === "truck") {
+          const beginningOfRow = (minTileIndex - 2) * tileSize;
+          const endOfRow = (maxTileIndex + 2) * tileSize;
+
+          rowData.vehicles.forEach(({ ref }) => {
+            if (!ref) throw Error("Vehicle reference is missing");
+
+            if (rowData.direction) {
+              ref.position.x =
+                ref.position.x > endOfRow
+                  ? beginningOfRow
+                  : ref.position.x + rowData.speed * delta;
+            } else {
+              ref.position.x =
+                ref.position.x < beginningOfRow
+                  ? endOfRow
+                  : ref.position.x - rowData.speed * delta;
+            }
+          });
+        }
+      });
+    }
+
+    function animate() {
+      animateVehicles();
+
+      renderer.render(scene, camera);
+    }
+
     initializeGame();
 
-    renderer.render(scene, camera);
+    renderer.setAnimationLoop(animate);
 
     return () => {
       if (renderer) {
