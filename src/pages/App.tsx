@@ -14,6 +14,7 @@ const App = () => {
     createRoad,
     createCar,
     createTruck,
+    createDirectionalLight,
   } = useThreeTools();
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const App = () => {
     const player = createPlayer();
     const map = new THREE.Group();
     const ambientLight = new THREE.AmbientLight();
-    const dirLight = new THREE.DirectionalLight();
+    const dirLight = createDirectionalLight();
     const camera = createCamera();
     const metadata = createMetaData();
 

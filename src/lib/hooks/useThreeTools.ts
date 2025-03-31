@@ -1,10 +1,9 @@
-import { useCallback } from "react";
 import * as THREE from "three";
 import { tilesPerRow, tileSize } from "../constants/constants";
 import { Row } from "../types/RowType";
 
 export const useThreeTools = () => {
-  const createRenderer = useCallback((canvas: HTMLCanvasElement) => {
+  const createRenderer = (canvas: HTMLCanvasElement) => {
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
@@ -13,11 +12,12 @@ export const useThreeTools = () => {
 
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
 
     return renderer;
-  }, []);
+  };
 
-  const createCamera = useCallback(() => {
+  const createCamera = () => {
     const size = 300;
     const viewRatio = window.innerWidth / window.innerHeight;
     const width = viewRatio < 1 ? size : size * viewRatio;
@@ -37,9 +37,9 @@ export const useThreeTools = () => {
     newCamera.lookAt(0, 0, 0);
 
     return newCamera;
-  }, []);
+  };
 
-  const createPlayer = useCallback(() => {
+  const createPlayer = () => {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(15, 15, 20),
       new THREE.MeshLambertMaterial({
@@ -47,11 +47,14 @@ export const useThreeTools = () => {
         flatShading: true,
       })
     );
+    body.position.z = 10;
+    body.castShadow = true;
+    body.receiveShadow = true;
 
     return body;
-  }, []);
+  };
 
-  const createGrass = useCallback((rowIndex: number) => {
+  const createGrass = (rowIndex: number) => {
     const grass = new THREE.Group();
     grass.position.y = rowIndex * tileSize;
 
@@ -60,13 +63,14 @@ export const useThreeTools = () => {
       new THREE.MeshLambertMaterial({ color: 0xbaf455 })
     );
     foundation.position.z = 1.5;
+    foundation.receiveShadow = true;
 
     grass.add(foundation);
 
     return grass;
-  }, []);
+  };
 
-  const createMetaData = useCallback(() => {
+  const createMetaData = () => {
     const metadata: Row[] = [
       {
         type: "car",
@@ -105,9 +109,9 @@ export const useThreeTools = () => {
       },
     ];
     return metadata;
-  }, []);
+  };
 
-  const createTree = useCallback((tileIndex: number, height: number) => {
+  const createTree = (tileIndex: number, height: number) => {
     const tree = new THREE.Group();
     tree.position.x = tileIndex * tileSize;
 
@@ -129,10 +133,12 @@ export const useThreeTools = () => {
       })
     );
     crown.position.z = height / 2 + 20;
+    crown.castShadow = true;
+    crown.receiveShadow = true;
     tree.add(crown);
 
     return tree;
-  }, []);
+  };
 
   const createRoad = (rowIndex: number) => {
     const road = new THREE.Group();
@@ -142,6 +148,7 @@ export const useThreeTools = () => {
       new THREE.PlaneGeometry(tilesPerRow * tileSize, tileSize),
       new THREE.MeshLambertMaterial({ color: 0x454a59 })
     );
+    foundation.receiveShadow = true;
     road.add(foundation);
 
     return road;
@@ -174,6 +181,8 @@ export const useThreeTools = () => {
       new THREE.MeshLambertMaterial({ color, flatShading: true })
     );
     main.position.z = 12;
+    main.castShadow = true;
+    main.receiveShadow = true;
     car.add(main);
 
     const cabin = new THREE.Mesh(
@@ -185,6 +194,8 @@ export const useThreeTools = () => {
     );
     cabin.position.x = -6;
     cabin.position.z = 25.5;
+    cabin.castShadow = true;
+    cabin.receiveShadow = true;
     car.add(cabin);
 
     const frontWheel = createWheel(18);
@@ -214,6 +225,8 @@ export const useThreeTools = () => {
     );
     cargo.position.x = -15;
     cargo.position.z = 25;
+    cargo.castShadow = true;
+    cargo.receiveShadow = true;
     truck.add(cargo);
 
     const cabin = new THREE.Mesh(
@@ -222,6 +235,8 @@ export const useThreeTools = () => {
     );
     cabin.position.x = 35;
     cabin.position.z = 20;
+    cabin.castShadow = true;
+    cabin.receiveShadow = true;
     truck.add(cabin);
 
     const frontWheel = createWheel(37);
@@ -236,6 +251,26 @@ export const useThreeTools = () => {
     return truck;
   };
 
+  const createDirectionalLight = () => {
+    const dirLight = new THREE.DirectionalLight();
+    dirLight.position.set(-100, -100, 200);
+    dirLight.up.set(0, 0, 1);
+    dirLight.castShadow = true;
+
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+
+    dirLight.shadow.camera.up.set(0, 0, 1);
+    dirLight.shadow.camera.left = -400;
+    dirLight.shadow.camera.right = 400;
+    dirLight.shadow.camera.top = 400;
+    dirLight.shadow.camera.bottom = -400;
+    dirLight.shadow.camera.near = 50;
+    dirLight.shadow.camera.far = 400;
+
+    return dirLight;
+  };
+
   return {
     createRenderer,
     createCamera,
@@ -246,5 +281,6 @@ export const useThreeTools = () => {
     createRoad,
     createCar,
     createTruck,
+    createDirectionalLight,
   };
 };
