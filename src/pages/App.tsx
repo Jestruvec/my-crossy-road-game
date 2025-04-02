@@ -73,8 +73,9 @@ const App = () => {
     scene.add(map);
     scene.add(ambientLight);
     dirLight.position.set(-100, -100, 200);
-    scene.add(dirLight);
-    scene.add(camera);
+    dirLight.target = player;
+    player.add(dirLight);
+    player.add(camera);
 
     function addRows() {
       metadata.forEach((rowData, index) => {
@@ -239,7 +240,7 @@ const App = () => {
 
     player.position.x = THREE.MathUtils.lerp(startX, endX, progress);
     player.position.y = THREE.MathUtils.lerp(startY, endY, progress);
-    player.position.z = Math.sin(progress * Math.PI) * 8;
+    player.children[0].position.z = Math.sin(progress * Math.PI) * 8;
   }
 
   function setRotation(progress: number) {
@@ -249,8 +250,8 @@ const App = () => {
     if (movesQueue[0] == "right") endRotation = -Math.PI / 2;
     if (movesQueue[0] == "backward") endRotation = Math.PI;
 
-    player.rotation.z = THREE.MathUtils.lerp(
-      player.rotation.z,
+    player.children[0].rotation.z = THREE.MathUtils.lerp(
+      player.children[0].rotation.z,
       endRotation,
       progress
     );
