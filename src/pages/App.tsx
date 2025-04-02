@@ -216,6 +216,9 @@ const App = () => {
 
     // Add new rows if the player is running out of them
     if (position.currentRow > metadata.length - 10) addRows();
+
+    const scoreDOM = document.getElementById("score");
+    if (scoreDOM) scoreDOM.innerText = position.currentRow.toString();
   }
 
   function animatePlayer() {
@@ -449,6 +452,7 @@ const App = () => {
             <FaArrowRight />
           </button>
         </div>
+        <div id="score">0</div>
       </div>
     </>
   );
