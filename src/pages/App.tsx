@@ -13,6 +13,7 @@ import {
   FaArrowLeft,
   FaArrowRight,
 } from "react-icons/fa";
+import { Row, RowType } from "@/lib/types/RowType";
 
 const App = () => {
   window.addEventListener("keydown", (event) => {
@@ -48,6 +49,7 @@ const App = () => {
   const movesQueue: MoveDirection[] = [];
   const moveClock = new THREE.Clock(false);
   const player = createPlayer();
+  const map = new THREE.Group();
   const metadata = createMetaData();
 
   const position: {
@@ -63,7 +65,6 @@ const App = () => {
 
     const scene = new THREE.Scene();
     const renderer = createRenderer(sceneRef.current);
-    const map = new THREE.Group();
     const ambientLight = new THREE.AmbientLight();
     const dirLight = createDirectionalLight();
     const camera = createCamera();
@@ -76,56 +77,6 @@ const App = () => {
     dirLight.target = player;
     player.add(dirLight);
     player.add(camera);
-
-    function addRows() {
-      metadata.forEach((rowData, index) => {
-        const rowIndex = index + 1;
-
-        if (rowData.type === "forest") {
-          const row = createGrass(rowIndex);
-
-          rowData.trees.forEach(({ tileIndex, height }) => {
-            const three = createTree(tileIndex, height);
-            row.add(three);
-          });
-
-          map.add(row);
-        }
-
-        if (rowData.type === "car") {
-          const row = createRoad(rowIndex);
-
-          rowData.vehicles.forEach((vehicle) => {
-            const car = createCar(
-              vehicle.initialTileIndex,
-              rowData.direction,
-              vehicle.color
-            );
-
-            vehicle.ref = car;
-            row.add(car);
-          });
-
-          map.add(row);
-        }
-
-        if (rowData.type === "truck") {
-          const row = createRoad(rowIndex);
-
-          rowData.vehicles.forEach((vehicle) => {
-            const truck = createTruck(
-              vehicle.initialTileIndex,
-              rowData.direction,
-              vehicle.color
-            );
-            vehicle.ref = truck;
-            row.add(truck);
-          });
-
-          map.add(row);
-        }
-      });
-    }
 
     function initializeMap() {
       for (let rowIndex = 0; rowIndex > -5; rowIndex--) {
@@ -186,6 +137,61 @@ const App = () => {
     };
   });
 
+  function addRows() {
+    const newMetadata = generateRows(20);
+
+    const startIndex = metadata.length;
+    metadata.push(...newMetadata);
+
+    newMetadata.forEach((rowData, index) => {
+      const rowIndex = startIndex + index + 1;
+
+      if (rowData.type === "forest") {
+        const row = createGrass(rowIndex);
+
+        rowData.trees.forEach(({ tileIndex, height }) => {
+          const three = createTree(tileIndex, height);
+          row.add(three);
+        });
+
+        map.add(row);
+      }
+
+      if (rowData.type === "car") {
+        const row = createRoad(rowIndex);
+
+        rowData.vehicles.forEach((vehicle) => {
+          const car = createCar(
+            vehicle.initialTileIndex,
+            rowData.direction,
+            vehicle.color
+          );
+
+          vehicle.ref = car;
+          row.add(car);
+        });
+
+        map.add(row);
+      }
+
+      if (rowData.type === "truck") {
+        const row = createRoad(rowIndex);
+
+        rowData.vehicles.forEach((vehicle) => {
+          const truck = createTruck(
+            vehicle.initialTileIndex,
+            rowData.direction,
+            vehicle.color
+          );
+          vehicle.ref = truck;
+          row.add(truck);
+        });
+
+        map.add(row);
+      }
+    });
+  }
+
   function queueMove(direction: MoveDirection) {
     const isValidMove = endsUpInValidPosition(
       {
@@ -207,6 +213,9 @@ const App = () => {
     if (direction === "backward") position.currentRow -= 1;
     if (direction === "left") position.currentTile -= 1;
     if (direction === "right") position.currentTile += 1;
+
+    // Add new rows if the player is running out of them
+    if (position.currentRow > metadata.length - 10) addRows();
   }
 
   function animatePlayer() {
@@ -315,6 +324,95 @@ const App = () => {
     }
 
     return true;
+  }
+
+  function generateRows(amount: number): Row[] {
+    const rows: Row[] = [];
+    for (let i = 0; i < amount; i++) {
+      const rowData = generateRow();
+      rows.push(rowData);
+    }
+    return rows;
+  }
+
+  function generateRow(): Row {
+    const type: RowType = randomElement(["car", "truck", "forest"]);
+    if (type === "car") return generateCarLaneMetadata();
+    if (type === "truck") return generateTruckLaneMetadata();
+    return generateForesMetadata();
+  }
+
+  function randomElement<T>(array: T[]): T {
+    return array[Math.floor(Math.random() * array.length)];
+  }
+
+  function generateForesMetadata(): Row {
+    const occupiedTiles = new Set<number>();
+    const trees = Array.from({ length: 4 }, () => {
+      let tileIndex;
+      do {
+        tileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(tileIndex));
+      occupiedTiles.add(tileIndex);
+
+      const height = randomElement([20, 45, 60]);
+
+      return { tileIndex, height };
+    });
+
+    return { type: "forest", trees };
+  }
+
+  function generateCarLaneMetadata(): Row {
+    const direction = randomElement([true, false]);
+    const speed = randomElement([125, 156, 188]);
+
+    const occupiedTiles = new Set<number>();
+
+    const vehicles = Array.from({ length: 3 }, () => {
+      let initialTileIndex;
+      do {
+        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(initialTileIndex));
+      occupiedTiles.add(initialTileIndex - 1);
+      occupiedTiles.add(initialTileIndex);
+      occupiedTiles.add(initialTileIndex + 1);
+
+      const color: THREE.ColorRepresentation = randomElement([
+        0xa52523, 0xbdb638, 0x78b14b,
+      ]);
+
+      return { initialTileIndex, color };
+    });
+
+    return { type: "car", direction, speed, vehicles };
+  }
+
+  function generateTruckLaneMetadata(): Row {
+    const direction = randomElement([true, false]);
+    const speed = randomElement([125, 156, 188]);
+
+    const occupiedTiles = new Set<number>();
+
+    const vehicles = Array.from({ length: 2 }, () => {
+      let initialTileIndex;
+      do {
+        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(initialTileIndex));
+      occupiedTiles.add(initialTileIndex - 2);
+      occupiedTiles.add(initialTileIndex - 1);
+      occupiedTiles.add(initialTileIndex);
+      occupiedTiles.add(initialTileIndex + 1);
+      occupiedTiles.add(initialTileIndex + 2);
+
+      const color: THREE.ColorRepresentation = randomElement([
+        0xa52523, 0xbdb638, 0x78b14b,
+      ]);
+
+      return { initialTileIndex, color };
+    });
+
+    return { type: "truck", direction, speed, vehicles };
   }
 
   return (
