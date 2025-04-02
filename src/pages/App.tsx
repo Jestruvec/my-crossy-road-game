@@ -6,9 +6,31 @@ import {
   tileSize,
 } from "@/lib/constants/constants";
 import * as THREE from "three";
+import { MoveDirection } from "@/lib/types/MoveDirection";
+import {
+  FaArrowUp,
+  FaArrowDown,
+  FaArrowLeft,
+  FaArrowRight,
+} from "react-icons/fa";
 
 const App = () => {
-  const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault(); // Avoid scrolling the page
+      queueMove("forward");
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault(); // Avoid scrolling the page
+      queueMove("backward");
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault(); // Avoid scrolling the page
+      queueMove("left");
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault(); // Avoid scrolling the page
+      queueMove("right");
+    }
+  });
+
   const {
     createRenderer,
     createCamera,
@@ -22,12 +44,24 @@ const App = () => {
     createDirectionalLight,
   } = useThreeTools();
 
+  const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  const movesQueue: MoveDirection[] = [];
+  const moveClock = new THREE.Clock(false);
+  const player = createPlayer();
+
+  const position: {
+    currentRow: number;
+    currentTile: number;
+  } = {
+    currentRow: 0,
+    currentTile: 0,
+  };
+
   useEffect(() => {
     if (!sceneRef.current) return;
 
     const scene = new THREE.Scene();
     const renderer = createRenderer(sceneRef.current);
-    const player = createPlayer();
     const map = new THREE.Group();
     const ambientLight = new THREE.AmbientLight();
     const dirLight = createDirectionalLight();
@@ -135,6 +169,7 @@ const App = () => {
 
     function animate() {
       animateVehicles();
+      animatePlayer();
 
       renderer.render(scene, camera);
     }
@@ -150,7 +185,104 @@ const App = () => {
     };
   });
 
-  return <canvas ref={sceneRef} className="h-full" />;
+  function queueMove(direction: MoveDirection) {
+    movesQueue.push(direction);
+  }
+
+  function stepCompleted() {
+    const direction = movesQueue.shift();
+
+    if (direction === "forward") position.currentRow += 1;
+    if (direction === "backward") position.currentRow -= 1;
+    if (direction === "left") position.currentTile -= 1;
+    if (direction === "right") position.currentTile += 1;
+  }
+
+  function animatePlayer() {
+    if (!movesQueue.length) return;
+
+    if (!moveClock.running) moveClock.start();
+
+    const stepTime = 0.2; // Seconds it takes to take a step
+    const progress = Math.min(1, moveClock.getElapsedTime() / stepTime);
+
+    setPosition(progress);
+    setRotation(progress);
+
+    // Once a step has ended
+    if (progress >= 1) {
+      stepCompleted();
+      moveClock.stop();
+    }
+  }
+
+  function setPosition(progress: number) {
+    const startX = position.currentTile * tileSize;
+    const startY = position.currentRow * tileSize;
+    let endX = startX;
+    let endY = startY;
+
+    if (movesQueue[0] === "left") endX -= tileSize;
+    if (movesQueue[0] === "right") endX += tileSize;
+    if (movesQueue[0] === "forward") endY += tileSize;
+    if (movesQueue[0] === "backward") endY -= tileSize;
+
+    player.position.x = THREE.MathUtils.lerp(startX, endX, progress);
+    player.position.y = THREE.MathUtils.lerp(startY, endY, progress);
+    player.position.z = Math.sin(progress * Math.PI) * 8;
+  }
+
+  function setRotation(progress: number) {
+    let endRotation = 0;
+    if (movesQueue[0] == "forward") endRotation = 0;
+    if (movesQueue[0] == "left") endRotation = Math.PI / 2;
+    if (movesQueue[0] == "right") endRotation = -Math.PI / 2;
+    if (movesQueue[0] == "backward") endRotation = Math.PI;
+
+    player.rotation.z = THREE.MathUtils.lerp(
+      player.rotation.z,
+      endRotation,
+      progress
+    );
+  }
+
+  return (
+    <>
+      <canvas ref={sceneRef} className="h-full" />
+      <div id="controls">
+        <div>
+          <button
+            onClick={() => queueMove("forward")}
+            id="forward"
+            className="flex justify-center items-center"
+          >
+            <FaArrowUp />
+          </button>
+          <button
+            onClick={() => queueMove("left")}
+            id="left"
+            className="flex justify-center items-center"
+          >
+            <FaArrowLeft />
+          </button>
+          <button
+            onClick={() => queueMove("backward")}
+            id="backward"
+            className="flex justify-center items-center"
+          >
+            <FaArrowDown />
+          </button>
+          <button
+            onClick={() => queueMove("right")}
+            id="right"
+            className="flex justify-center items-center"
+          >
+            <FaArrowRight />
+          </button>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default App;
