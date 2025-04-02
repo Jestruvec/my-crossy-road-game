@@ -20,13 +20,13 @@ const App = () => {
       event.preventDefault(); // Avoid scrolling the page
       queueMove("forward");
     } else if (event.key === "ArrowDown") {
-      event.preventDefault(); // Avoid scrolling the page
+      event.preventDefault();
       queueMove("backward");
     } else if (event.key === "ArrowLeft") {
-      event.preventDefault(); // Avoid scrolling the page
+      event.preventDefault();
       queueMove("left");
     } else if (event.key === "ArrowRight") {
-      event.preventDefault(); // Avoid scrolling the page
+      event.preventDefault();
       queueMove("right");
     }
   });
@@ -48,6 +48,7 @@ const App = () => {
   const movesQueue: MoveDirection[] = [];
   const moveClock = new THREE.Clock(false);
   const player = createPlayer();
+  const metadata = createMetaData();
 
   const position: {
     currentRow: number;
@@ -66,7 +67,6 @@ const App = () => {
     const ambientLight = new THREE.AmbientLight();
     const dirLight = createDirectionalLight();
     const camera = createCamera();
-    const metadata = createMetaData();
     const clock = new THREE.Clock();
 
     scene.add(player);
@@ -186,6 +186,16 @@ const App = () => {
   });
 
   function queueMove(direction: MoveDirection) {
+    const isValidMove = endsUpInValidPosition(
+      {
+        rowIndex: position.currentRow,
+        tileIndex: position.currentTile,
+      },
+      [...movesQueue, direction]
+    );
+
+    if (!isValidMove) return;
+
     movesQueue.push(direction);
   }
 
@@ -244,6 +254,66 @@ const App = () => {
       endRotation,
       progress
     );
+  }
+
+  function calculateFinalPosition(
+    currentPosition: { rowIndex: number; tileIndex: number },
+    moves: MoveDirection[]
+  ) {
+    return moves.reduce((position, direction) => {
+      if (direction === "forward")
+        return {
+          rowIndex: position.rowIndex + 1,
+          tileIndex: position.tileIndex,
+        };
+      if (direction === "backward")
+        return {
+          rowIndex: position.rowIndex - 1,
+          tileIndex: position.tileIndex,
+        };
+      if (direction === "left")
+        return {
+          rowIndex: position.rowIndex,
+          tileIndex: position.tileIndex - 1,
+        };
+      if (direction === "right")
+        return {
+          rowIndex: position.rowIndex,
+          tileIndex: position.tileIndex + 1,
+        };
+      return position;
+    }, currentPosition);
+  }
+
+  function endsUpInValidPosition(
+    currentPosition: { rowIndex: number; tileIndex: number },
+    moves: MoveDirection[]
+  ) {
+    // Calculate where the player would end up after the move
+    const finalPosition = calculateFinalPosition(currentPosition, moves);
+
+    // Detect if we hit the edge of the board
+    if (
+      finalPosition.rowIndex === -1 ||
+      finalPosition.tileIndex === minTileIndex - 1 ||
+      finalPosition.tileIndex === maxTileIndex + 1
+    ) {
+      // Invalid move, ignore move command
+      return false;
+    }
+
+    // Detect if we hit a tree
+    const finalRow = metadata[finalPosition.rowIndex - 1];
+    if (
+      finalRow &&
+      finalRow.type === "forest" &&
+      finalRow.trees.some((tree) => tree.tileIndex === finalPosition.tileIndex)
+    ) {
+      // Invalid move, ignore move command
+      return false;
+    }
+
+    return true;
   }
 
   return (
