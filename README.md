@@ -4,7 +4,7 @@ Este proyecto es un juego que trata de avanzar en el mapa esquivando obstaculos 
 
 ## 🚀 Descripción
 
-En este juego, el objetivo es cruzar carreteras y ríos sin ser atropellado o caer al agua, sumando puntos por cada avance exitoso. Inspirado en el clásico Crossy Road, combina gráficos en 3D creados con Three.js para una experiencia visual envolvente y atractiva.
+En este juego, el objetivo es cruzar carreteras sin ser atropellado, sumando puntos por cada avance exitoso. Inspirado en el clásico Crossy Road, combina gráficos en 3D creados con Three.js para una experiencia visual envolvente y atractiva.
 
 ---
 
@@ -13,6 +13,12 @@ En este juego, el objetivo es cruzar carreteras y ríos sin ser atropellado o ca
 React: Librería principal para la construcción de la interfaz de usuario.
 
 Three js: Librería para renderizado y gráficos 3D en el navegador.
+
+## 🛠️ Agradecimientos
+
+Quiero expresar mi gratitud a Hunor Marton Borbely por su excelente tutorial, el cual fue clave para el desarrollo de este juego.
+
+También agradezco a los creadores y colaboradores de Three.js, cuya potente librería hizo posible la implementación de gráficos 3D en este proyecto.
 
 ## 🚀 Despliegue
 
