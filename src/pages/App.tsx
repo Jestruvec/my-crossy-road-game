@@ -46,6 +46,8 @@ const App = () => {
   } = useThreeTools();
 
   const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  const resultContainer = useRef<HTMLDivElement | null>(null);
+  const finalScoreDOM = useRef<HTMLSpanElement | null>(null);
   const movesQueue: MoveDirection[] = [];
   const moveClock = new THREE.Clock(false);
   const player = createPlayer();
@@ -78,19 +80,6 @@ const App = () => {
     player.add(dirLight);
     player.add(camera);
 
-    function initializeMap() {
-      for (let rowIndex = 0; rowIndex > -5; rowIndex--) {
-        const grass = createGrass(rowIndex);
-        map.add(grass);
-      }
-
-      addRows();
-    }
-
-    function initializeGame() {
-      initializeMap();
-    }
-
     function animateVehicles() {
       const delta = clock.getDelta();
 
@@ -122,6 +111,7 @@ const App = () => {
     function animate() {
       animateVehicles();
       animatePlayer();
+      hitTest();
 
       renderer.render(scene, camera);
     }
@@ -136,6 +126,30 @@ const App = () => {
       }
     };
   });
+
+  function initializeGame() {
+    initializePlayer();
+    initializeMap();
+
+    // Initialize UI
+    if (finalScoreDOM.current) finalScoreDOM.current.innerText = "0";
+    if (resultContainer.current)
+      resultContainer.current.style.visibility = "hidden";
+  }
+
+  function initializeMap() {
+    // Remove all rows
+    metadata.length = 0;
+    map.remove(...map.children);
+
+    // Add new rows
+    for (let rowIndex = 0; rowIndex > -5; rowIndex--) {
+      const grass = createGrass(rowIndex);
+      map.add(grass);
+    }
+
+    addRows();
+  }
 
   function addRows() {
     const newMetadata = generateRows(20);
@@ -418,9 +432,47 @@ const App = () => {
     return { type: "truck", direction, speed, vehicles };
   }
 
+  function hitTest() {
+    const row = metadata[position.currentRow - 1];
+    if (!row) return;
+
+    if (row.type === "car" || row.type === "truck") {
+      const playerBoundingBox = new THREE.Box3();
+      playerBoundingBox.setFromObject(player);
+
+      row.vehicles.forEach(({ ref }) => {
+        if (!ref) throw Error("Vehicle reference is missing");
+
+        const vehicleBoundingBox = new THREE.Box3();
+        vehicleBoundingBox.setFromObject(ref);
+
+        if (playerBoundingBox.intersectsBox(vehicleBoundingBox)) {
+          if (!resultContainer.current || !finalScoreDOM.current) return;
+          resultContainer.current.style.visibility = "visible";
+          finalScoreDOM.current.innerText = position.currentRow.toString();
+        }
+      });
+    }
+  }
+
+  function initializePlayer() {
+    // Initialize the Three.js player object
+    player.position.x = 0;
+    player.position.y = 0;
+    player.children[0].position.z = 0;
+
+    // Initialize metadata
+    position.currentRow = 0;
+    position.currentTile = 0;
+
+    // Clear the moves queue
+    movesQueue.length = 0;
+  }
+
   return (
     <>
       <canvas ref={sceneRef} className="h-full" />
+
       <div id="controls">
         <div>
           <button
@@ -452,7 +504,20 @@ const App = () => {
             <FaArrowRight />
           </button>
         </div>
-        <div id="score">0</div>
+      </div>
+
+      <div id="score">0</div>
+
+      <div id="result-container" ref={resultContainer}>
+        <div id="result">
+          <h1>Game Over</h1>
+          <p>
+            Your score: <span id="final-score" ref={finalScoreDOM}></span>
+          </p>
+          <button id="retry" onClick={initializeGame}>
+            Retry
+          </button>
+        </div>
       </div>
     </>
   );
