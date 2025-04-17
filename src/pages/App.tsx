@@ -14,6 +14,7 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 import { Row, RowType } from "@/lib/types/RowType";
+import { randomElement } from "@/lib/helpers/randomElement";
 
 const App = () => {
   const {
@@ -188,6 +189,8 @@ const App = () => {
     };
   });
 
+  //GAME INITIALIZATION
+
   const initializeGame = () => {
     initializePlayer();
     initializeMap();
@@ -211,6 +214,19 @@ const App = () => {
 
     addRows();
   };
+
+  const initializePlayer = () => {
+    player.position.x = 0;
+    player.position.y = 0;
+    player.children[0].position.z = 0;
+
+    position.currentRow = 0;
+    position.currentTile = 0;
+
+    movesQueue.length = 0;
+  };
+
+  //MAP GENERATION
 
   const addRows = () => {
     const newMetadata = generateRows(20);
@@ -266,6 +282,93 @@ const App = () => {
       }
     });
   };
+
+  const generateRows = (amount: number): Row[] => {
+    const rows: Row[] = [];
+    for (let i = 0; i < amount; i++) {
+      const rowData = generateRow();
+      rows.push(rowData);
+    }
+    return rows;
+  };
+
+  const generateRow = (): Row => {
+    const type: RowType = randomElement(["car", "truck", "forest"]);
+    if (type === "car") return generateCarLaneMetadata();
+    if (type === "truck") return generateTruckLaneMetadata();
+    return generateForesMetadata();
+  };
+
+  const generateForesMetadata = (): Row => {
+    const occupiedTiles = new Set<number>();
+    const trees = Array.from({ length: 4 }, () => {
+      let tileIndex;
+      do {
+        tileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(tileIndex));
+      occupiedTiles.add(tileIndex);
+
+      const height = randomElement([20, 45, 60]);
+
+      return { tileIndex, height };
+    });
+
+    return { type: "forest", trees };
+  };
+
+  const generateCarLaneMetadata = (): Row => {
+    const direction = randomElement([true, false]);
+    const speed = randomElement([125, 156, 188]);
+
+    const occupiedTiles = new Set<number>();
+
+    const vehicles = Array.from({ length: 3 }, () => {
+      let initialTileIndex;
+      do {
+        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(initialTileIndex));
+      occupiedTiles.add(initialTileIndex - 1);
+      occupiedTiles.add(initialTileIndex);
+      occupiedTiles.add(initialTileIndex + 1);
+
+      const color: THREE.ColorRepresentation = randomElement([
+        0xa52523, 0xbdb638, 0x78b14b,
+      ]);
+
+      return { initialTileIndex, color };
+    });
+
+    return { type: "car", direction, speed, vehicles };
+  };
+
+  const generateTruckLaneMetadata = (): Row => {
+    const direction = randomElement([true, false]);
+    const speed = randomElement([125, 156, 188]);
+
+    const occupiedTiles = new Set<number>();
+
+    const vehicles = Array.from({ length: 2 }, () => {
+      let initialTileIndex;
+      do {
+        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
+      } while (occupiedTiles.has(initialTileIndex));
+      occupiedTiles.add(initialTileIndex - 2);
+      occupiedTiles.add(initialTileIndex - 1);
+      occupiedTiles.add(initialTileIndex);
+      occupiedTiles.add(initialTileIndex + 1);
+      occupiedTiles.add(initialTileIndex + 2);
+
+      const color: THREE.ColorRepresentation = randomElement([
+        0xa52523, 0xbdb638, 0x78b14b,
+      ]);
+
+      return { initialTileIndex, color };
+    });
+
+    return { type: "truck", direction, speed, vehicles };
+  };
+
+  //PLAYER MOVEMENT
 
   const queueMove = (direction: MoveDirection) => {
     const isValidMove = endsUpInValidPosition(
@@ -385,106 +488,6 @@ const App = () => {
 
     return true;
   };
-
-  const generateRows = (amount: number): Row[] => {
-    const rows: Row[] = [];
-    for (let i = 0; i < amount; i++) {
-      const rowData = generateRow();
-      rows.push(rowData);
-    }
-    return rows;
-  };
-
-  const generateRow = (): Row => {
-    const type: RowType = randomElement(["car", "truck", "forest"]);
-    if (type === "car") return generateCarLaneMetadata();
-    if (type === "truck") return generateTruckLaneMetadata();
-    return generateForesMetadata();
-  };
-
-  const generateForesMetadata = (): Row => {
-    const occupiedTiles = new Set<number>();
-    const trees = Array.from({ length: 4 }, () => {
-      let tileIndex;
-      do {
-        tileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
-      } while (occupiedTiles.has(tileIndex));
-      occupiedTiles.add(tileIndex);
-
-      const height = randomElement([20, 45, 60]);
-
-      return { tileIndex, height };
-    });
-
-    return { type: "forest", trees };
-  };
-
-  const generateCarLaneMetadata = (): Row => {
-    const direction = randomElement([true, false]);
-    const speed = randomElement([125, 156, 188]);
-
-    const occupiedTiles = new Set<number>();
-
-    const vehicles = Array.from({ length: 3 }, () => {
-      let initialTileIndex;
-      do {
-        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
-      } while (occupiedTiles.has(initialTileIndex));
-      occupiedTiles.add(initialTileIndex - 1);
-      occupiedTiles.add(initialTileIndex);
-      occupiedTiles.add(initialTileIndex + 1);
-
-      const color: THREE.ColorRepresentation = randomElement([
-        0xa52523, 0xbdb638, 0x78b14b,
-      ]);
-
-      return { initialTileIndex, color };
-    });
-
-    return { type: "car", direction, speed, vehicles };
-  };
-
-  const generateTruckLaneMetadata = (): Row => {
-    const direction = randomElement([true, false]);
-    const speed = randomElement([125, 156, 188]);
-
-    const occupiedTiles = new Set<number>();
-
-    const vehicles = Array.from({ length: 2 }, () => {
-      let initialTileIndex;
-      do {
-        initialTileIndex = THREE.MathUtils.randInt(minTileIndex, maxTileIndex);
-      } while (occupiedTiles.has(initialTileIndex));
-      occupiedTiles.add(initialTileIndex - 2);
-      occupiedTiles.add(initialTileIndex - 1);
-      occupiedTiles.add(initialTileIndex);
-      occupiedTiles.add(initialTileIndex + 1);
-      occupiedTiles.add(initialTileIndex + 2);
-
-      const color: THREE.ColorRepresentation = randomElement([
-        0xa52523, 0xbdb638, 0x78b14b,
-      ]);
-
-      return { initialTileIndex, color };
-    });
-
-    return { type: "truck", direction, speed, vehicles };
-  };
-
-  const initializePlayer = () => {
-    player.position.x = 0;
-    player.position.y = 0;
-    player.children[0].position.z = 0;
-
-    position.currentRow = 0;
-    position.currentTile = 0;
-
-    movesQueue.length = 0;
-  };
-
-  function randomElement<T>(array: T[]): T {
-    return array[Math.floor(Math.random() * array.length)];
-  }
 
   return (
     <>
