@@ -16,22 +16,6 @@ import {
 import { Row, RowType } from "@/lib/types/RowType";
 
 const App = () => {
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowUp") {
-      event.preventDefault(); // Avoid scrolling the page
-      queueMove("forward");
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      queueMove("backward");
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      queueMove("left");
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault();
-      queueMove("right");
-    }
-  });
-
   const {
     createRenderer,
     createCamera,
@@ -80,7 +64,22 @@ const App = () => {
     player.add(dirLight);
     player.add(camera);
 
-    function animateVehicles() {
+    const handleResize = () => {
+      const viewRatio = window.innerWidth / window.innerHeight;
+      const size = 300;
+      const width = viewRatio < 1 ? size : size * viewRatio;
+      const height = viewRatio < 1 ? size / viewRatio : size;
+
+      camera.left = -width / 2;
+      camera.right = width / 2;
+      camera.top = height / 2;
+      camera.bottom = -height / 2;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    const animateVehicles = () => {
       const delta = clock.getDelta();
 
       // Animate cars and trucks
@@ -106,15 +105,75 @@ const App = () => {
           });
         }
       });
-    }
+    };
 
-    function animate() {
+    const animatePlayer = () => {
+      if (!movesQueue.length) return;
+
+      if (!moveClock.running) moveClock.start();
+
+      const stepTime = 0.2; // Seconds it takes to take a step
+      const progress = Math.min(1, moveClock.getElapsedTime() / stepTime);
+
+      setPosition(progress);
+      setRotation(progress);
+
+      // Once a step has ended
+      if (progress >= 1) {
+        stepCompleted();
+        moveClock.stop();
+      }
+    };
+
+    const hitTest = () => {
+      const row = metadata[position.currentRow - 1];
+      if (!row) return;
+
+      if (row.type === "car" || row.type === "truck") {
+        const playerBoundingBox = new THREE.Box3();
+        playerBoundingBox.setFromObject(player);
+
+        row.vehicles.forEach(({ ref }) => {
+          if (!ref) throw Error("Vehicle reference is missing");
+
+          const vehicleBoundingBox = new THREE.Box3();
+          vehicleBoundingBox.setFromObject(ref);
+
+          if (playerBoundingBox.intersectsBox(vehicleBoundingBox)) {
+            if (!resultContainer.current || !finalScoreDOM.current) return;
+            resultContainer.current.style.visibility = "visible";
+            finalScoreDOM.current.innerText = position.currentRow.toString();
+          }
+        });
+      }
+    };
+
+    const animate = () => {
       animateVehicles();
       animatePlayer();
       hitTest();
 
       renderer.render(scene, camera);
-    }
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        queueMove("forward");
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        queueMove("backward");
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        queueMove("left");
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        queueMove("right");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("resize", handleResize);
 
     initializeGame();
 
@@ -122,12 +181,14 @@ const App = () => {
 
     return () => {
       if (renderer) {
+        window.removeEventListener("keydown", handleKeydown);
+        window.removeEventListener("resize", handleResize);
         renderer.dispose();
       }
     };
   });
 
-  function initializeGame() {
+  const initializeGame = () => {
     initializePlayer();
     initializeMap();
 
@@ -135,9 +196,9 @@ const App = () => {
     if (finalScoreDOM.current) finalScoreDOM.current.innerText = "0";
     if (resultContainer.current)
       resultContainer.current.style.visibility = "hidden";
-  }
+  };
 
-  function initializeMap() {
+  const initializeMap = () => {
     // Remove all rows
     metadata.length = 0;
     map.remove(...map.children);
@@ -149,9 +210,9 @@ const App = () => {
     }
 
     addRows();
-  }
+  };
 
-  function addRows() {
+  const addRows = () => {
     const newMetadata = generateRows(20);
 
     const startIndex = metadata.length;
@@ -204,9 +265,9 @@ const App = () => {
         map.add(row);
       }
     });
-  }
+  };
 
-  function queueMove(direction: MoveDirection) {
+  const queueMove = (direction: MoveDirection) => {
     const isValidMove = endsUpInValidPosition(
       {
         rowIndex: position.currentRow,
@@ -218,9 +279,9 @@ const App = () => {
     if (!isValidMove) return;
 
     movesQueue.push(direction);
-  }
+  };
 
-  function stepCompleted() {
+  const stepCompleted = () => {
     const direction = movesQueue.shift();
 
     if (direction === "forward") position.currentRow += 1;
@@ -233,27 +294,9 @@ const App = () => {
 
     const scoreDOM = document.getElementById("score");
     if (scoreDOM) scoreDOM.innerText = position.currentRow.toString();
-  }
+  };
 
-  function animatePlayer() {
-    if (!movesQueue.length) return;
-
-    if (!moveClock.running) moveClock.start();
-
-    const stepTime = 0.2; // Seconds it takes to take a step
-    const progress = Math.min(1, moveClock.getElapsedTime() / stepTime);
-
-    setPosition(progress);
-    setRotation(progress);
-
-    // Once a step has ended
-    if (progress >= 1) {
-      stepCompleted();
-      moveClock.stop();
-    }
-  }
-
-  function setPosition(progress: number) {
+  const setPosition = (progress: number) => {
     const startX = position.currentTile * tileSize;
     const startY = position.currentRow * tileSize;
     let endX = startX;
@@ -267,9 +310,9 @@ const App = () => {
     player.position.x = THREE.MathUtils.lerp(startX, endX, progress);
     player.position.y = THREE.MathUtils.lerp(startY, endY, progress);
     player.children[0].position.z = Math.sin(progress * Math.PI) * 8;
-  }
+  };
 
-  function setRotation(progress: number) {
+  const setRotation = (progress: number) => {
     let endRotation = 0;
     if (movesQueue[0] == "forward") endRotation = 0;
     if (movesQueue[0] == "left") endRotation = Math.PI / 2;
@@ -281,12 +324,12 @@ const App = () => {
       endRotation,
       progress
     );
-  }
+  };
 
-  function calculateFinalPosition(
+  const calculateFinalPosition = (
     currentPosition: { rowIndex: number; tileIndex: number },
     moves: MoveDirection[]
-  ) {
+  ) => {
     return moves.reduce((position, direction) => {
       if (direction === "forward")
         return {
@@ -310,12 +353,12 @@ const App = () => {
         };
       return position;
     }, currentPosition);
-  }
+  };
 
-  function endsUpInValidPosition(
+  const endsUpInValidPosition = (
     currentPosition: { rowIndex: number; tileIndex: number },
     moves: MoveDirection[]
-  ) {
+  ) => {
     // Calculate where the player would end up after the move
     const finalPosition = calculateFinalPosition(currentPosition, moves);
 
@@ -341,29 +384,25 @@ const App = () => {
     }
 
     return true;
-  }
+  };
 
-  function generateRows(amount: number): Row[] {
+  const generateRows = (amount: number): Row[] => {
     const rows: Row[] = [];
     for (let i = 0; i < amount; i++) {
       const rowData = generateRow();
       rows.push(rowData);
     }
     return rows;
-  }
+  };
 
-  function generateRow(): Row {
+  const generateRow = (): Row => {
     const type: RowType = randomElement(["car", "truck", "forest"]);
     if (type === "car") return generateCarLaneMetadata();
     if (type === "truck") return generateTruckLaneMetadata();
     return generateForesMetadata();
-  }
+  };
 
-  function randomElement<T>(array: T[]): T {
-    return array[Math.floor(Math.random() * array.length)];
-  }
-
-  function generateForesMetadata(): Row {
+  const generateForesMetadata = (): Row => {
     const occupiedTiles = new Set<number>();
     const trees = Array.from({ length: 4 }, () => {
       let tileIndex;
@@ -378,9 +417,9 @@ const App = () => {
     });
 
     return { type: "forest", trees };
-  }
+  };
 
-  function generateCarLaneMetadata(): Row {
+  const generateCarLaneMetadata = (): Row => {
     const direction = randomElement([true, false]);
     const speed = randomElement([125, 156, 188]);
 
@@ -403,9 +442,9 @@ const App = () => {
     });
 
     return { type: "car", direction, speed, vehicles };
-  }
+  };
 
-  function generateTruckLaneMetadata(): Row {
+  const generateTruckLaneMetadata = (): Row => {
     const direction = randomElement([true, false]);
     const speed = randomElement([125, 156, 188]);
 
@@ -430,43 +469,21 @@ const App = () => {
     });
 
     return { type: "truck", direction, speed, vehicles };
-  }
+  };
 
-  function hitTest() {
-    const row = metadata[position.currentRow - 1];
-    if (!row) return;
-
-    if (row.type === "car" || row.type === "truck") {
-      const playerBoundingBox = new THREE.Box3();
-      playerBoundingBox.setFromObject(player);
-
-      row.vehicles.forEach(({ ref }) => {
-        if (!ref) throw Error("Vehicle reference is missing");
-
-        const vehicleBoundingBox = new THREE.Box3();
-        vehicleBoundingBox.setFromObject(ref);
-
-        if (playerBoundingBox.intersectsBox(vehicleBoundingBox)) {
-          if (!resultContainer.current || !finalScoreDOM.current) return;
-          resultContainer.current.style.visibility = "visible";
-          finalScoreDOM.current.innerText = position.currentRow.toString();
-        }
-      });
-    }
-  }
-
-  function initializePlayer() {
-    // Initialize the Three.js player object
+  const initializePlayer = () => {
     player.position.x = 0;
     player.position.y = 0;
     player.children[0].position.z = 0;
 
-    // Initialize metadata
     position.currentRow = 0;
     position.currentTile = 0;
 
-    // Clear the moves queue
     movesQueue.length = 0;
+  };
+
+  function randomElement<T>(array: T[]): T {
+    return array[Math.floor(Math.random() * array.length)];
   }
 
   return (
