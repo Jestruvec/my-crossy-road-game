@@ -52,9 +52,9 @@ const App = () => {
 
     const scene = new THREE.Scene();
     const renderer = createRenderer(sceneRef.current);
+    const camera = createCamera();
     const ambientLight = new THREE.AmbientLight();
     const dirLight = createDirectionalLight();
-    const camera = createCamera();
     const clock = new THREE.Clock();
 
     scene.add(player);
@@ -78,6 +78,22 @@ const App = () => {
       camera.updateProjectionMatrix();
 
       renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        queueMove("forward");
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        queueMove("backward");
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        queueMove("left");
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        queueMove("right");
+      }
     };
 
     const animateVehicles = () => {
@@ -157,22 +173,6 @@ const App = () => {
       renderer.render(scene, camera);
     };
 
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        queueMove("forward");
-      } else if (event.key === "ArrowDown") {
-        event.preventDefault();
-        queueMove("backward");
-      } else if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        queueMove("left");
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        queueMove("right");
-      }
-    };
-
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("resize", handleResize);
 
@@ -197,6 +197,7 @@ const App = () => {
 
     // Initialize UI
     if (finalScoreDOM.current) finalScoreDOM.current.innerText = "0";
+
     if (resultContainer.current)
       resultContainer.current.style.visibility = "hidden";
   };
